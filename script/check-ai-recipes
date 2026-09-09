@@ -55,7 +55,18 @@ def main():
             ["cargo", "test", "--locked", "--manifest-path", manifest],
         ]:
             print("Running: " + " ".join(argv), flush=True)
-            subprocess.run(argv, cwd=ROOT, env=env, check=True)
+            result = subprocess.run(argv, cwd=ROOT, env=env, check=False)
+            if result.returncode != 0:
+                # DIAGNOSTIC (fork): print what cargo wanted to change in the
+                # lock file before failing, so cross-platform lock drift is
+                # visible in the CI log.
+                subprocess.run(
+                    ["git", "--no-pager", "diff", "--", "examples/ai_recipes/Cargo.lock"],
+                    cwd=ROOT,
+                    env=env,
+                    check=True,
+                )
+                raise SystemExit(result.returncode)
         print("PASS: isolated consumer compile and GPUI recipe tests. Native OS accessibility and visual review are separate gates.")
         return 0
     except (ValueError, OSError, subprocess.CalledProcessError) as error:
