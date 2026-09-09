@@ -55,26 +55,7 @@ def main():
             ["cargo", "test", "--locked", "--manifest-path", manifest],
         ]:
             print("Running: " + " ".join(argv), flush=True)
-            result = subprocess.run(argv, cwd=ROOT, env=env, check=False)
-            if result.returncode != 0 and "--locked" in argv:
-                # DIAGNOSTIC (fork): rerun without --locked to let cargo write
-                # what it wants, print the lock diff, then restore the lock.
-                unlocked = [a for a in argv if a != "--locked"]
-                print("DIAGNOSTIC rerun without --locked: " + " ".join(unlocked), flush=True)
-                subprocess.run(unlocked, cwd=ROOT, env=env, check=False)
-                subprocess.run(
-                    ["git", "--no-pager", "diff", "--", "examples/ai_recipes/Cargo.lock"],
-                    cwd=ROOT,
-                    env=env,
-                    check=False,
-                )
-                subprocess.run(
-                    ["git", "checkout", "--", "examples/ai_recipes/Cargo.lock"],
-                    cwd=ROOT,
-                    env=env,
-                    check=False,
-                )
-                raise SystemExit(result.returncode)
+            subprocess.run(argv, cwd=ROOT, env=env, check=True)
         print("PASS: isolated consumer compile and GPUI recipe tests. Native OS accessibility and visual review are separate gates.")
         return 0
     except (ValueError, OSError, subprocess.CalledProcessError) as error:
