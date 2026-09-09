@@ -587,7 +587,7 @@ impl SyntaxHighlighter {
 }
 
 /// Standalone function for async bracket matching.
-/// Takes clonable data (Tree, Rope, language name) to avoid cloning the whole SyntaxHighlighter.
+/// Takes cloneable data (Tree, Rope, language name) to avoid cloning the whole SyntaxHighlighter.
 pub fn innermost_bracket_pair_from_tree(
     tree: &Tree,
     text: &Rope,
