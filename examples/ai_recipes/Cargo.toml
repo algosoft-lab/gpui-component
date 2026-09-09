@@ -11,6 +11,9 @@ publish = false
 gpui-kit = { path = "../../crates/kit" }
 
 [dev-dependencies]
+# The kit's `#[gpui_kit::test]` macro expands to `gpui::` paths, so the
+# consumer's own tests need gpui in scope.
+gpui = { git = "https://github.com/algosoft-lab/zed", version = "0.2.2" }
 gpui-kit = { path = "../../crates/kit", features = ["test-support"] }
 
 # fork(algosoft): resolve gpui from the fork so the recipes share the same

@@ -2425,6 +2425,7 @@ dependencies = [
 name = "gpui-kit-recipes"
 version = "0.0.0"
 dependencies = [
+ "gpui",
  "gpui-kit",
 ]
 
