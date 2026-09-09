@@ -12,3 +12,12 @@ gpui-kit = { path = "../../crates/kit" }
 
 [dev-dependencies]
 gpui-kit = { path = "../../crates/kit", features = ["test-support"] }
+
+# fork(algosoft): resolve gpui from the fork so the recipes share the same
+# patched gpui as the main workspace; upstream resolves the gpui-pre crates.
+[patch."https://github.com/zed-industries/zed"]
+gpui = { git = "https://github.com/algosoft-lab/zed", version = "=0.2.2" }
+gpui_macros = { git = "https://github.com/algosoft-lab/zed" }
+gpui_platform = { git = "https://github.com/algosoft-lab/zed", package = "gpui_platform" }
+gpui_web = { git = "https://github.com/algosoft-lab/zed" }
+sum-tree = { git = "https://github.com/algosoft-lab/zed", package = "sum_tree" }
