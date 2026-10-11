@@ -2575,13 +2575,14 @@ impl<M: InputModeKind> Element for TextElement<M> {
                 editor_style.border
             };
             let separator_x = input_bounds.origin.x + gutter_separator_width;
+            // The gutter background extends past `input_bounds` by the editor's
+            // top/bottom padding, so the separator has to span the very same
+            // bounds; starting at `input_bounds.origin.y` leaves a gap of that
+            // padding at the top of the line.
             window.paint_quad(fill(
                 Bounds::new(
-                    point(separator_x, input_bounds.origin.y),
-                    size(
-                        px(1.),
-                        input_bounds.size.height + prepaint.ghost_lines_height,
-                    ),
+                    point(separator_x, gutter_bounds.origin.y),
+                    size(px(1.), gutter_bounds.size.height),
                 ),
                 separator_color,
             ));
