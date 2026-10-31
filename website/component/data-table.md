@@ -325,6 +325,58 @@ let state = cx.new(|cx| {
 });
 ```
 
+### Modified Clicks
+
+A row click with ⌘ (Ctrl on Windows and Linux) or Shift held selects the row,
+as a plain click does. A delegate that keeps its own multi-row selection
+handles those clicks itself, usually on mouse down. Turn the table's selection
+off for them, so it does not undo the delegate's:
+
+```rust
+let state = cx.new(|cx| {
+    TableState::new(delegate, window, cx)
+        .select_on_modifier_click(false)
+});
+```
+
+### Reading and Writing the Selection
+
+A table holds one selection at a time: nothing, a row, a column, or a cell.
+`selection()` returns it as a single `TableSelection` value, and
+`set_selection()` writes one back, so persisting and restoring the selection
+is one read and one write:
+
+```rust
+use gpui_component::table::TableSelection;
+
+match state.read(cx).selection() {
+    TableSelection::None => {}
+    TableSelection::Row(row_ix) => println!("Row {row_ix}"),
+    TableSelection::Column(col_ix) => println!("Column {col_ix}"),
+    TableSelection::Cell(row_ix, col_ix) => println!("Cell ({row_ix}, {col_ix})"),
+}
+
+state.update(cx, |state, cx| {
+    // Scrolls and emits exactly as `set_selected_cell(5, 3, cx)` would.
+    state.set_selection(TableSelection::Cell(5, 3), cx);
+});
+```
+
+The positional getters `selected_row()`, `selected_col()` and `selected_cell()`
+each answer only for their own kind of selection. `selected_row()` is `Some`
+only when a row itself is selected; a selected cell does not surface through it,
+and selecting a row clears what `selected_cell()` reports. When you need the row
+a selected cell sits in, map it from the cell:
+
+```rust
+let row_ix = state.read(cx).selected_cell().map(|(row_ix, _)| row_ix);
+```
+
+Keyboard navigation remembers the last row and column position across mode
+changes. Pressing `Down` after selecting a column continues from the row that
+was selected before, even though `selected_row()` returned `None` in column
+mode.
+
 ### Column Resizing and Moving
 
 Enable dynamic column management:
@@ -355,6 +407,35 @@ cx.subscribe_in(&state, window, |view, table, event, _, cx| {
     }
 }).detach();
 ```
+
+#### Fitting a Column to Its Content
+
+A double-click on a column's resize handle fits the column to its widest
+content, as a spreadsheet does. This needs the delegate to measure the content:
+return its width from `TableDelegate::fit_column`. The table adds the cell
+padding, clamps to the column's `min_width` and `max_width`, and emits
+`TableEvent::ColumnWidthsChanged`. The default returns `None`, which leaves the
+column as it is. A sortable column's header also holds the table's sort icon
+(a 0.75rem icon with 2 px of padding on each side), which a header
+measurement must count.
+
+```rust
+impl TableDelegate for MyTableDelegate {
+    fn fit_column(
+        &mut self,
+        col_ix: usize,
+        window: &mut Window,
+        cx: &mut Context<TableState<Self>>,
+    ) -> Option<Pixels> {
+        // Measure the heading and every row's text in `col_ix` with
+        // `window.text_system().shape_line(..)` and return the widest.
+        Some(self.widest_text(col_ix, window, cx))
+    }
+}
+```
+
+`TableState::fit_col(col_ix, window, cx)` does the same from code, and
+`TableState::col_width(col_ix)` reads the width a column is drawn at now.
 
 ### Infinite Loading / Pagination
 
@@ -400,7 +481,7 @@ impl TableDelegate for MyTableDelegate {
 
 ### Table Styling
 
-Customize table appearance. `DataTable` implements `Sizable`: use preset sizes such as `.small()` and `.large()` for standard density, or pass a custom pixel size to set a uniform header and body row height.
+Customize table appearance. `DataTable` implements `Sizable`: use preset sizes such as `.small()` and `.large()` for standard density, or pass a custom pixel size to set the row height. Header rows use the same height unless you set `header_row_height`, which applies to each header row, column-group rows included.
 
 ```rust
 use gpui_kit::px;
@@ -412,9 +493,11 @@ let state = cx.new(|cx| {
 
 // In render
 DataTable::new(&state)
-    .with_size(px(48.))             // Custom uniform row height
+    .with_size(px(32.))             // Custom body row height
+    .header_row_height(px(48.))     // Taller header rows
     .stripe(true)                   // Alternating row colors
     .bordered(true)                 // Border around table
+    .fixed_cols_border(true)        // Border after the fixed columns
     .scrollbar_visible(true, true)  // Vertical, horizontal scrollbars
 ```
 
@@ -533,7 +616,8 @@ When cell selection is enabled:
 #### Programmatic Cell Selection
 
 ```rust
-// Get the currently selected cell
+// Get the currently selected cell. `None` while a row or column is
+// selected instead; see "Reading and Writing the Selection" above.
 if let Some((row_ix, col_ix)) = state.read(cx).selected_cell() {
     println!("Current cell: ({}, {})", row_ix, col_ix);
 }
@@ -595,8 +679,8 @@ impl TableDelegate for MyTableDelegate {
 
 - `↑/↓` - Navigate rows
 - `←/→` - Navigate columns
-- `Home` - Jump to first row/column
-- `End` - Jump to last row/column
+- `Home` - Jump to the first row
+- `End` - Jump to the last row
 - `PageUp/PageDown` - Navigate by page
 - `Escape` - Clear selection
 
@@ -620,6 +704,7 @@ impl TableDelegate for MyTableDelegate {
 - [TableDelegate] - Trait for implementing table data source
 - [Column] - Column configuration
 - [TableEvent] - Table events (selection, clicks, etc.)
+- [TableSelection] - The current selection as one value: `None`, `Row`, `Column`, or `Cell`
 
 ### Column Types
 
@@ -634,13 +719,17 @@ impl TableDelegate for MyTableDelegate {
 - `cell_selectable(bool)` - Enable/disable cell selection
 - `row_selectable(bool)` - Enable/disable row selection
 - `col_selectable(bool)` - Enable/disable column selection
-- `selected_cell()` - Get currently selected cell
+- `selection()` - Get the current selection as a `TableSelection`
+- `set_selection(selection, cx)` - Set the selection from a `TableSelection`; `TableSelection::None` clears it
+- `selected_cell()` - Get the selected cell; `None` unless a cell is selected
 - `set_selected_cell(row_ix, col_ix, cx)` - Select a specific cell
-- `selected_row()` - Get currently selected row
-- `selected_col()` - Get currently selected column
+- `selected_row()` - Get the selected row; `None` unless a row itself is selected
+- `selected_col()` - Get the selected column; `None` unless a column itself is selected
 - `clear_selection(cx)` - Clear all selections
 - `scroll_to_row(row_ix, cx)` - Scroll to specific row
 - `scroll_to_col(col_ix, cx)` - Scroll to specific column
+- `col_width(col_ix)` - Get the width a column is drawn at now
+- `fit_col(col_ix, window, cx)` - Fit a column to its content
 
 #### Column
 
@@ -657,7 +746,7 @@ impl TableDelegate for MyTableDelegate {
 - `selectable(bool)` - Enable/disable column/cell selection
 - `paddings(edges)` - Set custom padding
 - `min_width(pixels)` - Set minimum width
-- `max_width(pixels)` - Set maximum width
+- `max_width(pixels)` - Set the maximum resize width (1200px by default); set a larger value explicitly to allow wider columns
 
 ### Events
 
@@ -676,5 +765,19 @@ impl TableDelegate for MyTableDelegate {
 [TableDelegate]: https://docs.rs/gpui-component/latest/gpui_component/table/trait.TableDelegate.html
 [Column]: https://docs.rs/gpui-component/latest/gpui_component/table/struct.Column.html
 [TableEvent]: https://docs.rs/gpui-component/latest/gpui_component/table/enum.TableEvent.html
+[TableSelection]: https://docs.rs/gpui-component/latest/gpui_component/table/enum.TableSelection.html
 [ColumnSort]: https://docs.rs/gpui-component/latest/gpui_component/table/enum.ColumnSort.html
 [ColumnFixed]: https://docs.rs/gpui-component/latest/gpui_component/table/enum.ColumnFixed.html
+
+## Scroll bounce
+
+```rust
+DataTable::new(&state).scroll_bounce(true)
+```
+
+`scroll_bounce(true)` lets overflowing vertical content stretch at its ends and
+spring back with precise pixel scrolling, such as a trackpad or Magic Mouse
+on macOS. Ordinary mouse wheels use line scrolling and do not bounce. A new
+precise gesture or reversed precise scroll takes over the return; ordinary
+wheel input cancels it and scrolls normally. The logical scroll position remains clamped,
+and scrollbars stay fixed, as do the table headers. Content that fits does not bounce. It is enabled by default on iOS, Android and macOS, whose own scroll views bounce, and disabled elsewhere. Reduced motion disables displacement.

@@ -1,5 +1,8 @@
 #![cfg(not(target_family = "wasm"))]
 
+#[cfg(feature = "gpui-fast")]
+extern crate gpui_fast as gpui;
+
 use gpui::{AssetSource, IntoElement};
 use gpui_kit_assets::{AllAssets, Assets, IconName};
 use std::collections::BTreeSet;
@@ -62,9 +65,9 @@ fn default_assets_preserve_the_component_bundle_without_all_lucide_icons() {
         .collect();
     let actual: BTreeSet<_> = Assets.list("icons/").unwrap().into_iter().collect();
     assert_eq!(actual, expected);
-    // 101 upstream icons + the fork's icons/school.svg.
-    assert_eq!(actual.len(), 102);
-    assert_eq!(Assets::iter().count(), 102);
+    // 106 upstream icons + the fork's icons/school.svg.
+    assert_eq!(actual.len(), 107);
+    assert_eq!(Assets::iter().count(), 107);
     assert!(Assets::get("icons/search.svg").is_some());
     assert!(Assets::get("icons/accessibility.svg").is_none());
     for path in actual {

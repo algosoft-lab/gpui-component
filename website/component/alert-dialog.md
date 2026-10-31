@@ -25,6 +25,14 @@ use gpui_kit::component::WindowExt;
 
 ## Usage
 
+### Entrance animation
+
+Use `.entrance(DialogEntrance::Fade)`, `.entrance(DialogEntrance::FadeSlide)`, or
+`.entrance(DialogEntrance::None)` to override the default `SlideDown` entrance.
+AlertDialog follows the same theme timing, window boundaries, and reduced-motion
+policy as [Dialog](./dialog.md#entrance-animation), including the exit
+animation.
+
 ### Setup Application Root View
 
 Like Dialog, you need to set up your application's root view to render the dialog layer. See [Dialog documentation](./dialog.md#setup-application-root-view) for details.
@@ -141,29 +149,46 @@ window.open_alert_dialog(cx, |alert, _, _| {
 })
 ```
 
-### Custom Button Props
+### Custom Buttons
 
-Use `button_props` to customize button text and styles:
+Set the button text and variant directly on the dialog:
 
 ```rust
-use gpui_kit::component::dialog::DialogButtonProps;
 use gpui_kit::component::button::ButtonVariant;
 
 window.open_alert_dialog(cx, |alert, _, _| {
     alert
         .title("Delete Account")
         .description("This will permanently delete your account and all associated data.")
-        .button_props(
-            DialogButtonProps::default()
-                .ok_text("Delete")
-                .ok_variant(ButtonVariant::Danger)
-                .cancel_text("Keep")
-                .show_cancel(true)
-        )
+        .confirm()
+        .ok_text("Delete")
+        .ok_variant(ButtonVariant::Danger)
+        .cancel_text("Keep")
         .on_ok(|_, window, cx| {
             window.push_notification("Account deleted", cx);
             true
         })
+})
+```
+
+`button_props` takes the same properties as one value, for a configuration you
+want to build up or pass around. It overrides only the fields the value sets,
+so everything the dialog already carries — the Cancel button `confirm` asked
+for, a callback an earlier `on_ok` installed — survives, whatever the call
+order:
+
+```rust
+use gpui_kit::component::dialog::DialogButtonProps;
+
+window.open_alert_dialog(cx, move |alert, _, _| {
+    alert
+        .title("Delete Account")
+        .confirm()
+        .button_props(
+            DialogButtonProps::default()
+                .ok_text("Delete")
+                .ok_variant(ButtonVariant::Danger)
+        )
 })
 ```
 
@@ -323,17 +348,12 @@ window.open_alert_dialog(cx, |alert, _, _| {
 Return `false` from `on_ok` or `on_cancel` callbacks to prevent the dialog from closing:
 
 ```rust
-use gpui_kit::component::dialog::DialogButtonProps;
-
 window.open_alert_dialog(cx, |alert, _, _| {
     alert
         .title("Processing")
         .description("A process is running. Click Continue to stop it or Cancel to keep waiting.")
-        .button_props(
-            DialogButtonProps::default()
-                .ok_text("Continue")
-                .show_cancel(true)
-        )
+        .confirm()
+        .ok_text("Continue")
         .on_ok(|_, window, cx| {
             // Return false to prevent closing
             window.push_notification("Cannot close: Process still running", cx);
@@ -373,17 +393,27 @@ window.open_alert_dialog(cx, |alert, _, _| {
 | `title(title)`           | Set dialog title (imperative API)                             |
 | `description(desc)`      | Set dialog description (imperative API)                       |
 | `icon(icon)`             | Set dialog icon (imperative API)                              |
-| `button_props(props)`    | Set button properties (text, style, visibility)               |
+| `confirm()`              | Show OK and Cancel buttons                                    |
+| `ok_text(text)`          | Set OK button text, default "OK"                              |
+| `ok_variant(variant)`    | Set OK button variant, default `Primary`                      |
+| `cancel_text(text)`      | Set cancel button text, default "Cancel"                      |
+| `cancel_variant(variant)`| Set cancel button variant                                     |
+| `button_props(props)`    | Override the button properties the value sets, keep the rest  |
 | `show_cancel(bool)`      | Show/hide cancel button, default `false`                      |
 | `width(px)`              | Set dialog width, default `420px`                             |
 | `overlay_closable(bool)` | Allow clicking overlay to close, default `false`              |
 | `close_button(bool)`     | Show/hide close button, default `false`                       |
 | `keyboard(bool)`         | Support ESC key to close, default `true`                      |
+| `entrance(DialogEntrance)` | Set entrance animation, default `SlideDown` |
+| `centered()` | Center vertically in the window instead of near its top |
 | `on_ok(callback)`        | Set OK button callback, return `true` to close dialog         |
 | `on_cancel(callback)`    | Set cancel button callback, return `true` to close dialog     |
 | `on_close(callback)`     | Set callback after dialog closes                              |
 
 ### DialogButtonProps
+
+Every property is unset until a builder sets it, and an unset property keeps
+whatever the dialog already carries.
 
 | Method                    | Description                              |
 | ------------------------- | ---------------------------------------- |
@@ -433,7 +463,7 @@ DialogClose::new().child(
 
 ### Delete Confirmation
 
-Using imperative API with button props:
+Using imperative API:
 
 ```rust
 Button::new("delete")
@@ -444,12 +474,9 @@ Button::new("delete")
             alert
                 .title("Delete File?")
                 .description("This action cannot be undone.")
-                .button_props(
-                    DialogButtonProps::default()
-                        .ok_text("Delete")
-                        .ok_variant(ButtonVariant::Danger)
-                        .show_cancel(true)
-                )
+                .confirm()
+                .ok_text("Delete")
+                .ok_variant(ButtonVariant::Danger)
                 .on_ok(|_, window, cx| {
                     // Perform delete operation
                     window.push_notification("File deleted", cx);

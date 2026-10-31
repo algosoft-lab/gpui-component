@@ -3,11 +3,14 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
 
-const dist = new URL('../dist/', import.meta.url);
+const dist = new URL(process.env.SITE_TEST_DIST || '../dist/', import.meta.url);
 const read = (path) => readFileSync(new URL(path, dist), 'utf8');
 
 function htmlFiles(directory) {
   return readdirSync(directory).flatMap((name) => {
+    // The versioned build writes under dist/versions; it is a separate site
+    // with repeated page titles, not part of the root site's SEO inventory.
+    if (directory === dist.pathname && name === 'versions') return [];
     const path = join(directory, name);
     return statSync(path).isDirectory() ? htmlFiles(path) : path.endsWith('.html') ? [path] : [];
   });
@@ -68,6 +71,26 @@ test('every indexable HTML page has exactly one H1', () => {
   }
 });
 
+test('core guide links resolve to existing pages and headings', () => {
+  for (const file of htmlFiles(dist.pathname)) {
+    const relative = file.slice(dist.pathname.length);
+    if (!/^(?:zh-CN\/)?docs\/[^/]+\/index\.html$/.test(relative)) continue;
+    if (!existsSync(join(dist.pathname, '..', relative.replace(/\/index\.html$/, '.md')))) continue;
+    const article = readFileSync(file, 'utf8').match(/<article class="doc-content"[^>]*>([\s\S]*?)<\/article>/)?.[1];
+    assert.ok(article, `${relative} has documentation content`);
+    for (const [, href] of article.matchAll(/<a\b[^>]*\bhref="([^"]+)"/g)) {
+      const url = new URL(href, 'https://gpui-kit.com');
+      if (url.origin !== 'https://gpui-kit.com' || !/^\/(?:zh-CN\/)?docs\//.test(url.pathname)) continue;
+      const page = join(dist.pathname, decodeURIComponent(url.pathname), 'index.html');
+      assert.ok(existsSync(page), `${relative} links to missing page ${href}`);
+      if (url.hash) {
+        const id = decodeURIComponent(url.hash.slice(1));
+        assert.ok(readFileSync(page, 'utf8').includes(`id="${id}"`), `${relative} links to missing heading ${href}`);
+      }
+    }
+  }
+});
+
 test('SEO discovery files and structured data are generated', () => {
   assert.ok(existsSync(new URL('robots.txt', dist)));
   assert.ok(existsSync(new URL('sitemap.xml', dist)));
@@ -82,6 +105,7 @@ test('404 is excluded from indexing', () => {
 test('component pages have independent routes, translated alternates and readable legacy URLs', () => {
   for (const locale of ['', 'zh-CN/']) {
     const source = new URL(`../${locale}component/`, import.meta.url);
+    assert.match(read(`${locale}docs.md`).trimEnd(), /> [^\n]*CC BY 4\.0[^\n]*Apache-2\.0[^\n]*\.?$/);
     for (const name of readdirSync(source).filter(name => name.endsWith('.md'))) {
       const slug = name.slice(0, -3);
       const route = `${locale}component${slug === 'index' ? '' : `/${slug}`}`;
@@ -90,12 +114,28 @@ test('component pages have independent routes, translated alternates and readabl
       assert.match(html, /hreflang="en"/);
       assert.match(html, /hreflang="zh-CN"/);
       assert.match(read(`${route}.md`), new RegExp(`^---\nurl: /${route}\\.md\n`));
+      assert.match(read(`${route}.md`).trimEnd(), /> [^\n]*CC BY 4\.0[^\n]*Apache-2\.0[^\n]*\.?$/);
       assert.match(read(`${locale}docs/components/${slug}/index.html`), /http-equiv="refresh"/);
       assert.ok(read(`${locale}docs/components/${slug}/index.html`).includes(`url=/${route}`));
       assert.equal(read(`${locale}docs/components/${slug}.md`), read(`${route}.md`));
     }
     assert.ok(read(`${locale}docs/components/index.html`).includes(`url=/${locale}component`));
     assert.equal(read(`${locale}docs/components.md`), read(`${locale}component.md`));
+  }
+});
+
+test('versioned documentation examples load the shared root WASM builds', () => {
+  for (const path of [
+    'component/button/index.html',
+    'base/primitives/button/index.html',
+    'zh-CN/component/button/index.html',
+    'zh-CN/base/primitives/button/index.html',
+  ]) {
+    const html = read(path);
+    assert.ok(
+      html.includes('baseUrl&quot;:[0,&quot;/&quot;]'),
+      `${path} must load examples from the site-root WASM deployment`,
+    );
   }
 });
 
@@ -134,6 +174,14 @@ test('component links and discovery use canonical routes', () => {
   assert.ok(!sitemap.includes('/docs/components'));
   assert.ok(!index.includes('/docs/components'));
   assert.ok(!full.includes('/docs/components'));
+});
+
+test('LLM discovery identifies tested consumer recipes', () => {
+  const index = read('llms.txt');
+  const full = read('llms-full.txt');
+  assert.match(index, /Tested consumer recipe: command-control/);
+  assert.match(full, /Tested consumer recipe: command-control/);
+  assert.match(full, /Source: \/component\/button/);
 });
 
 test('primary navigation follows the Kit section order', () => {

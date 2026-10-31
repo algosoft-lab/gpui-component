@@ -57,6 +57,17 @@ Switch::new("notifications")
     })
 ```
 
+### Without Label
+
+A switch without visible text has no accessible name, so screen readers can't tell it apart
+from other switches. Name it with `.accessibility_label(...)`. This doesn't add a visible label:
+
+```rust
+Switch::new("airplane-mode")
+    .accessibility_label("Airplane mode")
+    .checked(false)
+```
+
 ### Different Sizes
 
 ```rust
@@ -125,6 +136,22 @@ Switch::new("switch")
     .checked(false)
 ```
 
+### Keyboard Focus
+
+A switch is a tab stop and draws the theme's focus ring around its track when it is focused, the same ring `Checkbox` and `Button` draw. Pass `focus_ring(false)` when the ring is drawn elsewhere, and `tab_stop` / `tab_index` to change its place in the tab order.
+
+```rust
+Switch::new("switch")
+    .label("Custom tab order")
+    .tab_index(2)
+    .tab_stop(true)
+
+// The row around it draws its own focus treatment.
+Switch::new("switch")
+    .label("Quiet focus")
+    .focus_ring(false)
+```
+
 ## API Reference
 
 ### Switch
@@ -135,10 +162,14 @@ Switch::new("switch")
 | `checked(bool)`    | Set the checked/toggled state                               |
 | `label(text)`      | Set label text for the switch                               |
 | `label_side(side)` | Position label (Side::Left or Side::Right)                  |
+| `accessibility_label(text)` | Name announced by screen readers; set it when there is no visible label |
 | `disabled(bool)`   | Set disabled state                                          |
 | `tooltip(text)`    | Add tooltip text                                            |
 | `color(color)`     | Set background color when checked (default: `theme.primary`) |
 | `on_change(fn)`     | Requested checked value, receives `&bool` |
+| `focus_ring(bool)` | Draw the focus ring around the track when focused (default: `true`) |
+| `tab_stop(bool)`   | Take part in Tab traversal (default: `true`)                |
+| `tab_index(isize)` | Position in the tab order within a tab group (default: `0`) |
 
 ### Styling
 

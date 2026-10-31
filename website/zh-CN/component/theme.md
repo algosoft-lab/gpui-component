@@ -1,5 +1,5 @@
 ---
-title: 主题
+title: Theme
 description: 使用 GPUI Component 主题系统定制颜色、字体、圆角以及明暗外观。
 example: false
 ---
@@ -66,7 +66,7 @@ pub fn init(cx: &mut App) {
             .get(&theme_name)
             .cloned()
         {
-            Theme::global_mut(cx).apply_config(&theme);
+            Theme::update(cx, |current| current.apply_config(&theme));
         }
     }) {
         tracing::error!("Failed to watch themes directory: {}", err);

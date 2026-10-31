@@ -57,6 +57,16 @@ Switch::new("notifications")
     })
 ```
 
+### 不带标签
+
+没有可见文字的 Switch 没有无障碍名称，屏幕阅读器无法将它与其他开关区分开。用 `.accessibility_label(...)` 设置名称；这不会添加可见标签：
+
+```rust
+Switch::new("airplane-mode")
+    .accessibility_label("Airplane mode")
+    .checked(false)
+```
+
 ### 不同尺寸
 
 ```rust
@@ -117,6 +127,22 @@ Switch::new("switch")
     .checked(false)
 ```
 
+### 键盘焦点
+
+Switch 默认是一个 Tab 停靠点，获得焦点时会在轨道外侧绘制主题焦点环，与 `Checkbox`、`Button` 一致。若焦点样式由外层绘制，传入 `focus_ring(false)` 关闭焦点环；用 `tab_stop` / `tab_index` 调整它在 Tab 顺序中的位置。
+
+```rust
+Switch::new("switch")
+    .label("Custom tab order")
+    .tab_index(2)
+    .tab_stop(true)
+
+// 外层行自己绘制焦点样式
+Switch::new("switch")
+    .label("Quiet focus")
+    .focus_ring(false)
+```
+
 ## API 参考
 
 ### Switch
@@ -127,10 +153,14 @@ Switch::new("switch")
 | `checked(bool)` | 设置当前选中状态 |
 | `label(text)` | 设置标签文本 |
 | `label_side(side)` | 设置标签位置，`Side::Left` 或 `Side::Right` |
+| `accessibility_label(text)` | 屏幕阅读器朗读的名称；没有可见标签时需要设置 |
 | `disabled(bool)` | 设置禁用状态 |
 | `tooltip(text)` | 添加提示文本 |
 | `color(color)` | 设置选中时的背景色，默认 `theme.primary` |
 | `on_change(fn)` | 点击回调，参数为新的 `&bool` 状态 |
+| `focus_ring(bool)` | 获得焦点时是否在轨道外侧绘制焦点环，默认 `true` |
+| `tab_stop(bool)` | 是否参与 Tab 焦点遍历，默认 `true` |
+| `tab_index(isize)` | 在 tab group 内的 Tab 顺序，默认 `0` |
 
 ### 样式
 

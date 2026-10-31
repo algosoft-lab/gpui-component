@@ -4,6 +4,11 @@
 //! [`Assets`] for the default component bundle, or [`AllAssets`] for the full
 //! catalog. Applications can provide their own source for additional icons.
 
+#[cfg(feature = "gpui-fast")]
+extern crate gpui_fast as gpui;
+#[cfg(all(feature = "gpui-fast", test))]
+extern crate gpui_fast_platform as gpui_platform;
+
 mod icon;
 pub use icon::{IconName, IconNamed};
 
@@ -14,7 +19,6 @@ pub use icon::{IconName, IconNamed};
 /// ## Usage
 ///
 /// ```rust,no_run
-/// use gpui::*;
 /// use gpui_kit_assets::Assets;
 ///
 /// let app = gpui_platform::application().with_assets(Assets);

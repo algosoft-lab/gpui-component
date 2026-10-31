@@ -85,6 +85,15 @@ Settings::new("app-settings")
     ])
 ```
 
+### Selection While Searching
+
+Search keeps the current page selected while it contains matching settings.
+If it no longer matches, the first matching page is selected. A matching
+selected group is preserved; otherwise selection falls back to its page.
+Clearing the search keeps the current page rather than restoring an earlier
+selection. When no settings match, no page content is shown and the selection
+is retained for when results return.
+
 ### Group Variants
 
 ```rust
@@ -97,6 +106,15 @@ Settings::new("my-settings")
 Settings::new("my-settings")
     .with_group_variant(GroupBoxVariant::Fill)
     .pages(vec![...])
+```
+
+A group can override the settings-level variant, for example to present one
+page's items directly while the other pages keep the global card surface:
+
+```rust
+SettingGroup::new()
+    .variant(GroupBoxVariant::Normal)
+    .items(vec![...])
 ```
 
 ## Setting Page
@@ -188,6 +206,24 @@ SettingGroup::new()
 ```rust
 SettingGroup::new()
     .items(vec![...])
+```
+
+### Footer outside the group surface
+
+Use `footer` to render supporting content below the group's background or
+border. It aligns with the group title and renders as small muted text like a
+description, so plain text is enough; the callback receives the current window
+and application context for richer content. It scrolls and is filtered with
+the group; it is not an independently searchable setting or a sidebar entry,
+and a group still needs at least one item to be shown.
+
+```rust
+SettingGroup::new()
+    .item(SettingItem::new(
+        "Update source",
+        SettingField::render(|_, _, _| "GitHub Releases"),
+    ))
+    .footer(|_, _| "Changes apply to this device only.")
 ```
 
 ## Setting Item

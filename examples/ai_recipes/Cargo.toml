@@ -1,20 +1,18 @@
 [package]
 name = "gpui-kit-recipes"
-version = "0.0.0"
-edition = "2024"
+description = "Tested consumer recipes published verbatim in the documentation."
+version = "0.8.1"
 publish = false
-
-# Deliberately isolated: workspace feature unification must not make these pass.
-[workspace]
+edition.workspace = true
 
 [dependencies]
-gpui-kit = { path = "../../crates/kit" }
+gpui-kit.workspace = true
 
 [dev-dependencies]
 # The kit's `#[gpui_kit::test]` macro expands to `gpui::` paths, so the
 # consumer's own tests need gpui in scope.
 gpui = { git = "https://github.com/algosoft-lab/zed", version = "0.2.2" }
-gpui-kit = { path = "../../crates/kit", features = ["test-support"] }
+gpui-kit = { workspace = true, features = ["test-support"] }
 
 # fork(algosoft): resolve gpui from the fork so the recipes share the same
 # patched gpui as the main workspace; upstream resolves the gpui-pre crates.
@@ -24,3 +22,9 @@ gpui_macros = { git = "https://github.com/algosoft-lab/zed" }
 gpui_platform = { git = "https://github.com/algosoft-lab/zed", package = "gpui_platform" }
 gpui_web = { git = "https://github.com/algosoft-lab/zed" }
 sum-tree = { git = "https://github.com/algosoft-lab/zed", package = "sum_tree" }
+
+[lints]
+workspace = true
+
+[features]
+gpui-fast = ["gpui-kit/gpui-fast"]

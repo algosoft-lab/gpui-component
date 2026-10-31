@@ -12,6 +12,16 @@ export const stories = [
     api: "Calendar",
   }),
   pendingStory({
+    id: "carousel",
+    title: "Carousel",
+    group: "Layout & advanced",
+    rustStory: "CarouselStory",
+    description: "Snapping navigation through related content.",
+    states: ["first item", "middle item", "last item"],
+    availability: "pending",
+    api: "Carousel",
+  }),
+  pendingStory({
     id: "chart",
     title: "Chart",
     group: "Layout & advanced",
@@ -40,6 +50,16 @@ export const stories = [
     states: ["split", "tab group", "side dock", "dragging"],
     availability: "infrastructure",
     api: "Dock",
+  }),
+  pendingStory({
+    id: "diff",
+    title: "Diff",
+    group: "Layout & advanced",
+    rustStory: "DiffStory",
+    description: "Readonly patch viewer.",
+    states: ["unified", "split", "multiple files"],
+    availability: "pending",
+    api: "Diff",
   }),
   pendingStory({
     id: "editor",
