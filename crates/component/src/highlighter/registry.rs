@@ -486,7 +486,9 @@ impl StatusColors {
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, JsonSchema, Serialize, Deserialize)]
-#[non_exhaustive]
+// fork(algosoft): no #[non_exhaustive] — algocode constructs themes
+// programmatically at runtime (preset + user color overrides), not only via
+// serde loading.
 pub struct HighlightThemeStyle {
     #[serde(rename = "editor.background")]
     pub editor_background: Option<Hsla>,
@@ -516,7 +518,7 @@ pub struct HighlightThemeStyle {
 ///
 /// https://zed.dev/docs/extensions/languages#syntax-highlighting
 #[derive(Debug, Clone, PartialEq, Eq, Hash, JsonSchema, Serialize, Deserialize)]
-#[non_exhaustive]
+// fork(algosoft): no #[non_exhaustive] — see HighlightThemeStyle.
 pub struct HighlightTheme {
     pub name: String,
     #[serde(default)]
