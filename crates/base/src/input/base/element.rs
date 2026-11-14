@@ -16,6 +16,7 @@ use gpui::{
 use ropey::Rope;
 use smallvec::SmallVec;
 use std::{ops::Range, rc::Rc};
+use sum_tree::Bias;
 
 use crate::{
     Scrollbar,
@@ -3461,6 +3462,16 @@ impl<M: InputModeKind> Element for TextElement<M> {
                 let mut font = style.font();
                 font.weight = FontWeight::BOLD;
                 for (start, len) in [(open_start, open_len), (close_start, close_len)] {
+                    // Defense in depth: a stale bracket-pair offset can land
+                    // mid-UTF-8-char (CJK IME typing raced the async task once
+                    // and crashed here). Clip to the nearest boundaries; if the
+                    // offset wasn't already on one, the highlight is meaningless
+                    // anyway — skip the glyph instead of panicking.
+                    if state.text.clip_offset(start, Bias::Left) != start
+                        || state.text.clip_offset(start + len, Bias::Right) != start + len
+                    {
+                        continue;
+                    }
                     let range = start..start + len;
                     if range.start < last_layout.visible_range_offset.start
                         || range.end > last_layout.visible_range_offset.end

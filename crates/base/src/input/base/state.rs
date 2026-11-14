@@ -468,6 +468,12 @@ pub struct InputBaseState<M: InputModeKind> {
     pub(super) ime_marked_range: Option<CursorSelection>,
     pub(super) matched_brace_ranges: Option<(usize, usize, usize, usize)>,
     pub(super) matched_brace_task: Option<Task<()>>,
+    /// Bumped on every text mutation. A bracket-pair task snapshots the tree
+    /// before running on a background thread; if the text changed by the time
+    /// its result lands, the (byte-offset) result no longer matches the buffer
+    /// and can land mid-UTF-8-char — typing CJK through IME crashed paint on
+    /// `text.slice()` that way. Results from an older generation are dropped.
+    pub(super) matched_brace_generation: u64,
     pub(super) rainbow_bracket_ranges: Vec<(usize, Vec<std::ops::Range<usize>>)>,
     pub(super) enable_rainbow_brackets: bool,
     pub(super) rainbow_brackets_dirty: bool,
@@ -984,6 +990,7 @@ impl<M: InputModeKind> InputBaseState<M> {
             ime_marked_range: None,
             matched_brace_ranges: None,
             matched_brace_task: None,
+            matched_brace_generation: 0,
             rainbow_bracket_ranges: Vec::new(),
             enable_rainbow_brackets: false,
             rainbow_brackets_dirty: false,
@@ -4329,6 +4336,7 @@ impl<M: InputModeKind> InputBaseState<M> {
             // relative position until the async task verifies it). The fork's
             // editor relies on this because every multi-line keystroke is
             // applied through this batch path.
+            self.matched_brace_generation += 1;
             if let Some(pair) = self.matched_brace_ranges.take() {
                 let old_len = range.end - range.start;
                 let delta = new_text.len() as isize - old_len as isize;
@@ -4577,9 +4585,16 @@ impl<M: InputModeKind> InputBaseState<M> {
             return;
         };
 
+        let generation = self.matched_brace_generation;
         self.matched_brace_task = Some(cx.spawn(async move |this, cx| {
             let result = cx.background_spawn(async move { task_fn() }).await;
             let _ = this.update(cx, |this, cx| {
+                if this.matched_brace_generation != generation {
+                    // The buffer changed while the task ran (fast IME typing is
+                    // the classic case): the byte offsets were computed against
+                    // the old text and may not be char boundaries any more.
+                    return;
+                }
                 if this.ime_marked_range.is_some() {
                     // An IME composition is now active; the caller cleared
                     // matched_brace_ranges in replace_and_mark_text_in_range,
@@ -4974,6 +4989,7 @@ impl<M: InputModeKind> EntityInputHandler for InputBaseState<M> {
         // After text edit, adjust matched_brace_ranges offsets by edit delta
         // (like Zed's anchor system: keep highlight at correct relative position
         // until async task verifies it).
+        self.matched_brace_generation += 1;
         if let Some(pair) = self.matched_brace_ranges.take() {
             let old_len = range.end - range.start;
             let delta = new_text.len() as isize - old_len as isize;
@@ -5166,6 +5182,7 @@ impl<M: InputModeKind> EntityInputHandler for InputBaseState<M> {
         // bracket pair highlight should not move or be refreshed during IME
         // composition. Hide it for now; it will be recomputed when the IME
         // commits via replace_text_in_range.
+        self.matched_brace_generation += 1;
         self.matched_brace_ranges = None;
         cx.notify();
     }
